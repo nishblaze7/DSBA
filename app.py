@@ -34,9 +34,9 @@ file_path = os.path.join(os.path.dirname(__file__), "Book4.xlsx")
 def load_data():
     try:
         df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
-        # Standardizing column names for easier matching
-        df.columns = df.columns.str.lower().str.replace(" ", " ")  # Keeping spaces
-        st.write("Available columns:", df.columns.tolist())  # Debugging info
+        # Standardizing column names for easier matching (preserving spaces)
+        df.columns = df.columns.str.lower().str.strip()  
+        st.write("📌 Available columns:", df.columns.tolist())  # Debugging info
         return df
     except FileNotFoundError:
         st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
@@ -80,7 +80,7 @@ def find_relevant_context(query, dataframe):
     
     relevant_columns = identify_relevant_columns(query)
     available_columns = list(set(relevant_columns) & set(dataframe.columns))  # Ensure only existing columns are used
-    
+
     if not available_columns:
         return "No relevant columns identified in the dataset for this query."
     
