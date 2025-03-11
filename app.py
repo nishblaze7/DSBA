@@ -59,8 +59,8 @@ else:
 
 # Column Mapping for Different Types of Queries
 COLUMN_MAPPINGS = {
-    "revenue": ["dummy_gross_rev", "dummy_net_rev"],
-    "sales_rep": ["sales_person_id"],
+    "revenue": ["dummy_gross_rev"],
+    "sales_rep": ["sales_person"],
     "time": ["month", "quarter", "date"],
     "customer": ["dummy_customer_name"]
 }
