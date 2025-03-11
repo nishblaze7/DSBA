@@ -27,6 +27,9 @@ file_path = os.path.join(os.path.dirname(__file__), "Book4.xlsx")
 def load_data():
     try:
         df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
+        
+        # **Clean column names** - Remove leading/trailing spaces & convert to lowercase
+        df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
         return df
     except FileNotFoundError:
         st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
@@ -42,17 +45,26 @@ def find_relevant_context(query, dataframe):
     if dataframe is None:
         return "Dataset not available."
     
-    query_lower = query.lower()
-    match = dataframe.apply(lambda row: any(query_lower in str(value).lower() for value in row), axis=1)
-    filtered_df = dataframe[match]
+    query_lower = query.strip().lower()  # Normalize query
+    best_match = None
+    max_matches = 0
     
-    if not filtered_df.empty:
-        return " ".join(filtered_df.astype(str).values.flatten())  # Convert to text for BERT
+    for _, row in dataframe.iterrows():
+        match_count = sum(query_lower in str(value).strip().lower() for value in row)
+        if match_count > max_matches:
+            max_matches = match_count
+            best_match = row.astype(str).to_dict()  # Convert row to dictionary
+    
+    if best_match:
+        return " ".join([f"{k}: {v}" for k, v in best_match.items()])  # Create structured context
     else:
         return "No relevant data found."
 
 # **Step 2: Use BERT to Answer the Question**
 def get_answer(question, context):
+    if context == "No relevant data found.":
+        return context
+    
     inputs = tokenizer(question, context, return_tensors="pt", truncation=True)
     with torch.no_grad():
         outputs = model(**inputs)
@@ -61,6 +73,10 @@ def get_answer(question, context):
     answer_start = torch.argmax(outputs.start_logits)
     answer_end = torch.argmax(outputs.end_logits) + 1
     answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs["input_ids"][0][answer_start:answer_end]))
+
+    # Handle cases where answer extraction fails
+    if not answer.strip():
+        return "No clear answer found. Try rephrasing your question."
     
     return answer
 
@@ -70,10 +86,7 @@ if st.button("Search"):
         extracted_context = find_relevant_context(user_query, df)
         
         # Step 2: Run BERT model only if relevant data is found
-        if extracted_context and extracted_context != "No relevant data found.":
-            result = get_answer(user_query, extracted_context)
-        else:
-            result = "No relevant information found in the dataset."
+        result = get_answer(user_query, extracted_context)
     
     # **Display Results**
     st.subheader("📌 Answer:")
