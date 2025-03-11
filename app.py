@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
@@ -18,11 +19,18 @@ st.title("💡 Financial Semantic Search")
 st.markdown("### Ask a financial question like:")
 st.markdown("- *What was the revenue for Customer X?* \n- *Who is the account owner for Customer Y?*")
 
-# Load dataset (Book4.xlsx) - Ensure it's in the same directory as the app
+# **Ensure correct file path for Book4.xlsx**
+file_path = os.path.join(os.path.dirname(__file__), "Book4.xlsx")
+
+# Load dataset with error handling
 @st.cache_resource()
 def load_data():
-    df = pd.read_excel("Book4.xlsx")  # Update filename if necessary
-    return df
+    try:
+        df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
+        return df
+    except FileNotFoundError:
+        st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
+        return None
 
 df = load_data()
 
@@ -31,6 +39,9 @@ user_query = st.text_input("Enter your query:", "What was the revenue for custom
 
 # **Step 1: Search the most relevant row in the dataset**
 def find_relevant_context(query, dataframe):
+    if dataframe is None:
+        return "Dataset not available."
+    
     query_lower = query.lower()
     match = dataframe.apply(lambda row: any(query_lower in str(value).lower() for value in row), axis=1)
     filtered_df = dataframe[match]
@@ -59,7 +70,7 @@ if st.button("Search"):
         extracted_context = find_relevant_context(user_query, df)
         
         # Step 2: Run BERT model only if relevant data is found
-        if extracted_context != "No relevant data found.":
+        if extracted_context and extracted_context != "No relevant data found.":
             result = get_answer(user_query, extracted_context)
         else:
             result = "No relevant information found in the dataset."
