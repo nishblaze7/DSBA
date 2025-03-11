@@ -35,7 +35,8 @@ def load_data():
     try:
         df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
         # Standardizing column names for easier matching
-        df.columns = df.columns.str.lower().str.replace(" ", "_")
+        df.columns = df.columns.str.lower().str.replace(" ", " ")  # Keeping spaces
+        st.write("Available columns:", df.columns.tolist())  # Debugging info
         return df
     except FileNotFoundError:
         st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
@@ -45,10 +46,10 @@ df = load_data()
 
 # Column Mapping for Different Types of Queries
 COLUMN_MAPPINGS = {
-    "revenue": ["dummy_gross_rev", "dummy_net_rev"],
-    "sales_rep": ["sales_person_id"],
+    "revenue": ["dummy gross rev", "dummy net rev"],
+    "sales_rep": ["sales person id"],
     "time": ["month", "quarter", "date"],
-    "customer": ["dummy_customer_name"]
+    "customer": ["dummy customer name"]
 }
 
 # Input box for user query
@@ -78,12 +79,14 @@ def find_relevant_context(query, dataframe):
         return "Dataset not available."
     
     relevant_columns = identify_relevant_columns(query)
-    if not relevant_columns:
-        return "No relevant columns identified for this query."
+    available_columns = list(set(relevant_columns) & set(dataframe.columns))  # Ensure only existing columns are used
+    
+    if not available_columns:
+        return "No relevant columns identified in the dataset for this query."
     
     # Search only in relevant columns
     query_lower = query.lower()
-    match = dataframe[relevant_columns].apply(lambda row: any(query_lower in str(value).lower() for value in row), axis=1)
+    match = dataframe[available_columns].apply(lambda row: any(query_lower in str(value).lower() for value in row if pd.notna(value)), axis=1)
     filtered_df = dataframe[match]
     
     if not filtered_df.empty:
