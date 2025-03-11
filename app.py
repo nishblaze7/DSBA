@@ -28,8 +28,16 @@ def load_data():
     try:
         df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
         
-        # **Clean column names** - Remove leading/trailing spaces & convert to lowercase
-        df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+        # Standardize column names (lowercase, replace spaces with underscores)
+        df.columns = df.columns.str.lower().str.replace(" ", "_")
+        
+        # Rename any incorrect columns
+        df.rename(columns={"dummry_gross_rev": "dummy_gross_rev"}, inplace=True)
+        
+        # Convert datetime columns to string for easier matching
+        df['month'] = df['month'].astype(str)
+        df['date'] = df['date'].astype(str)
+        
         return df
     except FileNotFoundError:
         st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
@@ -40,53 +48,39 @@ df = load_data()
 # Input box for user query
 user_query = st.text_input("Enter your query:", "What was the revenue for customer Aaapm in Q1 2024?")
 
-# **Step 1: Search the most relevant row in the dataset**
-def find_relevant_context(query, dataframe):
+# **Step 1: Search for relevant data in specific columns**
+def find_relevant_data(query, dataframe):
     if dataframe is None:
         return "Dataset not available."
     
-    query_lower = query.strip().lower()  # Normalize query
-    best_match = None
-    max_matches = 0
+    query_lower = query.lower()
+    relevant_columns = ['dummy_customer_name', 'customer_id', 'month', 'quarter', 'dummy_gross_rev', 'dummy_net_rev', 'sales_person_id']
     
-    for _, row in dataframe.iterrows():
-        match_count = sum(query_lower in str(value).strip().lower() for value in row)
-        if match_count > max_matches:
-            max_matches = match_count
-            best_match = row.astype(str).to_dict()  # Convert row to dictionary
+    match = dataframe[relevant_columns].apply(lambda row: any(query_lower in str(value).lower() for value in row), axis=1)
+    filtered_df = dataframe[match]
     
-    if best_match:
-        return " ".join([f"{k}: {v}" for k, v in best_match.items()])  # Create structured context
+    if not filtered_df.empty:
+        return filtered_df.iloc[0].to_dict()  # Return the first matched row as a dictionary
     else:
         return "No relevant data found."
 
-# **Step 2: Use BERT to Answer the Question**
-def get_answer(question, context):
-    if context == "No relevant data found.":
-        return context
+# **Step 2: Construct an Answer from Retrieved Data**
+def generate_answer(query, data):
+    if isinstance(data, str):  # If no relevant data was found
+        return data
     
-    inputs = tokenizer(question, context, return_tensors="pt", truncation=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
+    if "revenue" in query.lower():
+        return f"Customer {data['dummy_customer_name']} had a total revenue of ${data['dummy_gross_rev']} in {data['month']} ({data['quarter']})."
     
-    # Extract the most probable answer
-    answer_start = torch.argmax(outputs.start_logits)
-    answer_end = torch.argmax(outputs.end_logits) + 1
-    answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(inputs["input_ids"][0][answer_start:answer_end]))
-
-    # Handle cases where answer extraction fails
-    if not answer.strip():
-        return "No clear answer found. Try rephrasing your question."
+    if "sales person" in query.lower():
+        return f"The sales person ID for {data['dummy_customer_name']} is {data['sales_person_id']}."
     
-    return answer
+    return "I found some relevant data but couldn't generate a precise answer."
 
 if st.button("Search"):
     with st.spinner("🔍 Searching..."):
-        # Step 1: Extract relevant data from the dataset
-        extracted_context = find_relevant_context(user_query, df)
-        
-        # Step 2: Run BERT model only if relevant data is found
-        result = get_answer(user_query, extracted_context)
+        extracted_data = find_relevant_data(user_query, df)
+        result = generate_answer(user_query, extracted_data)
     
     # **Display Results**
     st.subheader("📌 Answer:")
