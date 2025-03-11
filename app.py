@@ -35,7 +35,7 @@ def load_data():
     try:
         df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
         # Standardizing column names for easier matching
-        df.columns = df.columns.str.lower().str.replace(" ", " ")  # Keeping spaces
+        df.columns = df.columns.str.lower().str.replace(" ", "_")  # Convert spaces to underscores for consistency
         st.write("Available columns:", df.columns.tolist())  # Debugging info
         return df
     except FileNotFoundError:
@@ -45,18 +45,24 @@ def load_data():
 df = load_data()
 
 # **Display Unique Customer Names for Debugging**
-if df is not None and "dummy customer name" in df.columns:
-    unique_customers = df["dummy customer name"].dropna().unique().tolist()
+if df is not None and "dummy_customer_name" in df.columns:
+    unique_customers = df["dummy_customer_name"].dropna().unique().tolist()
     st.write("📝 Unique Customer Names:", unique_customers[:10])  # Display first 10 customers
 else:
     st.write("⚠️ 'Dummy Customer Name' column not found!")
 
+# **Display Sample Customer Revenue Data**
+if df is not None and "dummy_customer_name" in df.columns and "dummy_gross_rev" in df.columns:
+    st.write("📝 Sample Customer Revenue Data:", df[["dummy_customer_name", "dummy_gross_rev"]].head(10))
+else:
+    st.write("⚠️ Customer Name or Revenue Column Not Found!")
+
 # Column Mapping for Different Types of Queries
 COLUMN_MAPPINGS = {
-    "revenue": ["dummy gross rev"],
-    "sales_rep": ["sales person id"],
+    "revenue": ["dummy_gross_rev", "dummy_net_rev"],
+    "sales_rep": ["sales_person_id"],
     "time": ["month", "quarter", "date"],
-    "customer": ["dummy customer name"]
+    "customer": ["dummy_customer_name"]
 }
 
 # Input box for user query
