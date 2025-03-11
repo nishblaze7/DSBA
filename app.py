@@ -38,10 +38,10 @@ df = load_data()
 
 # **Column Mapping for Different Types of Queries**
 COLUMN_MAPPINGS = {
-    "revenue": ["dummy_gross_rev", "dummy_net_rev"],
-    "sales_rep": ["sales_person_id"],
+    "revenue": ["dummy gross rev", "dummy net rev"],
+    "sales_rep": ["sales person id"],
     "time": ["month", "quarter", "date"],
-    "customer": ["dummy_customer_name"]
+    "customer": ["dummy customer name"]
 }
 
 # Input box for user query
