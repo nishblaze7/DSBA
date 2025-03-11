@@ -1,8 +1,15 @@
 import os
 import streamlit as st
 import pandas as pd
+import asyncio
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 import torch
+
+# Fix potential asyncio event loop issues
+try:
+    asyncio.get_running_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
 
 # Load model from Hugging Face
 MODEL_NAME = "Nishchandan/streamlit-bert-model"  # Update with your model repo
@@ -19,7 +26,7 @@ st.title("💡 Financial Semantic Search")
 st.markdown("### Ask a financial question like:")
 st.markdown("- *What was the revenue for Customer X?* \n- *Who is the sales rep for Customer Y?* \n- *What was the revenue for a customer in Q1 2024?*")
 
-# **Ensure correct file path for Book4.xlsx**
+# Ensure correct file path for Book4.xlsx
 file_path = os.path.join(os.path.dirname(__file__), "Book4.xlsx")
 
 # Load dataset with error handling
@@ -36,18 +43,18 @@ def load_data():
 
 df = load_data()
 
-# **Column Mapping for Different Types of Queries**
+# Column Mapping for Different Types of Queries
 COLUMN_MAPPINGS = {
-    "revenue": ["dummy gross rev", "dummy net rev"],
-    "sales_rep": ["sales person id"],
+    "revenue": ["dummy_gross_rev", "dummy_net_rev"],
+    "sales_rep": ["sales_person_id"],
     "time": ["month", "quarter", "date"],
-    "customer": ["dummy customer name"]
+    "customer": ["dummy_customer_name"]
 }
 
 # Input box for user query
 user_query = st.text_input("Enter your query:", "What was the revenue for customer Venqb in Jan-23?")
 
-# **Step 1: Identify Relevant Columns Based on Query**
+# Step 1: Identify Relevant Columns Based on Query
 def identify_relevant_columns(query):
     query = query.lower()
     
@@ -65,7 +72,7 @@ def identify_relevant_columns(query):
     
     return []  # Default to an empty list if no clear match
 
-# **Step 2: Find Matching Rows Based on Query**
+# Step 2: Find Matching Rows Based on Query
 def find_relevant_context(query, dataframe):
     if dataframe is None:
         return "Dataset not available."
@@ -84,7 +91,7 @@ def find_relevant_context(query, dataframe):
     else:
         return "No relevant data found."
 
-# **Step 3: Extract the Answer from Matched Data**
+# Step 3: Extract the Answer from Matched Data
 def generate_answer(question, matched_data):
     if isinstance(matched_data, str):
         return matched_data  # Return "No relevant data found."
@@ -97,12 +104,12 @@ def generate_answer(question, matched_data):
 
     return "\n".join(results)
 
-# **Step 4: Process User Query**
+# Step 4: Process User Query
 if st.button("Search"):
     with st.spinner("🔍 Searching..."):
         matched_data = find_relevant_context(user_query, df)
         result = generate_answer(user_query, matched_data)
     
-    # **Display Results**
+    # Display Results
     st.subheader("📌 Answer:")
     st.write(result)
