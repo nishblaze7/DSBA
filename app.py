@@ -1,131 +1,122 @@
-import os
+# Streamlit App: Customer Revenue NLP Query Engine
+
 import streamlit as st
 import pandas as pd
-import asyncio
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer
-import torch
+import difflib
+import datetime
 
-# Fix potential asyncio event loop issues
-try:
-    asyncio.get_running_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
-
-# Load model from Hugging Face
-MODEL_NAME = "Nishchandan/streamlit-bert-model"  # Update with your model repo
-
-@st.cache_resource()
-def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForQuestionAnswering.from_pretrained(MODEL_NAME)
-    return tokenizer, model
-
-tokenizer, model = load_model()
-
-st.title("💡 Financial Semantic Search")
-st.markdown("### Ask a financial question like:")
-st.markdown("- *What was the revenue for Customer X?* \n- *Who is the sales rep for Customer Y?* \n- *What was the revenue for a customer in Q1 2024?*")
-
-# Ensure correct file path for Book4.xlsx
-file_path = os.path.join(os.path.dirname(__file__), "Book4.xlsx")
-
-# Load dataset with error handling
-@st.cache_resource()
+# Load Data
 def load_data():
-    try:
-        df = pd.read_excel(file_path, engine="openpyxl")  # Ensure openpyxl is used
-        # Standardizing column names for easier matching
-        df.columns = df.columns.str.lower().str.replace(" ", "_")  # Convert spaces to underscores for consistency
-        st.write("Available columns:", df.columns.tolist())  # Debugging info
-        return df
-    except FileNotFoundError:
-        st.error("⚠️ File 'Book4.xlsx' not found! Ensure it's uploaded in the repo.")
-        return None
+    df = pd.read_excel('NPL Sample.xlsx')
+    df['Date'] = pd.to_datetime(df['Date'])
+    return df
 
 df = load_data()
+customer_list = df['Customer Name'].unique()
 
-# **Display Unique Customer Names for Debugging**
-if df is not None and "dummy_customer_name" in df.columns:
-    unique_customers = df["dummy_customer_name"].dropna().unique().tolist()
-    st.write("📝 Unique Customer Names:", unique_customers[:10])  # Display first 10 customers
-else:
-    st.write("⚠️ 'Dummy Customer Name' column not found!")
-
-# **Display Sample Customer Revenue Data**
-if df is not None and "dummy_customer_name" in df.columns and "dummy_gross_rev" in df.columns:
-    st.write("📝 Sample Customer Revenue Data:", df[["dummy_customer_name", "dummy_gross_rev"]].head(10))
-else:
-    st.write("⚠️ Customer Name or Revenue Column Not Found!")
-
-# Column Mapping for Different Types of Queries
-COLUMN_MAPPINGS = {
-    "revenue": ["dummy_gross_rev"],
-    "sales_rep": ["sales_person"],
-    "time": ["month", "quarter", "date"],
-    "customer": ["dummy_customer_name"]
+# Month Map
+month_map = {
+    'jan': 1, 'january': 1,
+    'feb': 2, 'february': 2,
+    'mar': 3, 'march': 3,
+    'apr': 4, 'april': 4,
+    'may': 5,
+    'jun': 6, 'june': 6,
+    'jul': 7, 'july': 7,
+    'aug': 8, 'august': 8,
+    'sep': 9, 'september': 9,
+    'oct': 10, 'october': 10,
+    'nov': 11, 'november': 11,
+    'dec': 12, 'december': 12
 }
 
-# Input box for user query
-user_query = st.text_input("Enter your query:", "What was the revenue for customer Venqb in Jan-23?")
+# Correct minor typos in month names
+def correct_month_typo(word):
+    matches = difflib.get_close_matches(word.lower(), month_map.keys(), n=1, cutoff=0.7)
+    if matches:
+        return month_map[matches[0]]
+    return None
 
-# Step 1: Identify Relevant Columns Based on Query
-def identify_relevant_columns(query):
-    query = query.lower()
-    
-    if any(word in query for word in ["revenue", "gross", "net", "total sales"]):
-        return COLUMN_MAPPINGS["revenue"]
-    
-    elif any(word in query for word in ["sales person", "rep", "account owner"]):
-        return COLUMN_MAPPINGS["sales_rep"]
-    
-    elif any(word in query for word in ["month", "quarter", "date", "year"]):
-        return COLUMN_MAPPINGS["time"]
-    
-    elif any(word in query for word in ["customer", "company", "client"]):
-        return COLUMN_MAPPINGS["customer"]
-    
-    return []  # Default to an empty list if no clear match
+# NLP Engine
+def smarter_nlp_query(question, data):
+    question = question.lower()
+    words = question.split()
 
-# Step 2: Find Matching Rows Based on Query
-def find_relevant_context(query, dataframe):
-    if dataframe is None:
-        return "Dataset not available."
-    
-    relevant_columns = identify_relevant_columns(query)
-    available_columns = list(set(relevant_columns) & set(dataframe.columns))  # Ensure only existing columns are used
-    
-    if not available_columns:
-        return "No relevant columns identified in the dataset for this query."
-    
-    # Search only in relevant columns
-    query_lower = query.lower()
-    match = dataframe[available_columns].apply(lambda row: any(query_lower in str(value).lower() for value in row if pd.notna(value)), axis=1)
-    filtered_df = dataframe[match]
-    
-    if not filtered_df.empty:
-        return filtered_df.to_dict(orient="records")  # Return structured data
+    # Customer fuzzy matching
+    customer_name = None
+    for word in words:
+        match = difflib.get_close_matches(word, [cust.lower() for cust in customer_list], n=1, cutoff=0.7)
+        if match:
+            for real_name in customer_list:
+                if real_name.lower() == match[0]:
+                    customer_name = real_name
+                    break
+            if customer_name:
+                break
+
+    # Month detection
+    month_found = None
+    for month_key in month_map.keys():
+        if month_key in question:
+            month_found = month_map[month_key]
+            break
+
+    if not month_found:
+        for word in words:
+            month_found = correct_month_typo(word)
+            if month_found:
+                break
+
+    # Year detection
+    import re
+    year_found = None
+    current_year = datetime.datetime.now().year
+
+    year_match = re.search(r'20\d{2}', question)
+    if year_match:
+        year_found = int(year_match.group(0))
+    elif "last year" in question:
+        year_found = current_year - 1
+    elif "this year" in question:
+        year_found = current_year
+    elif "last" in question and month_found:
+        year_found = current_year - 1
+    elif "this" in question and month_found:
+        year_found = current_year
+
+    # Validate inputs
+    if not customer_name:
+        return "Sorry, could not recognize the customer name. Please check spelling."
+    if not month_found:
+        return "Sorry, could not recognize the month. Please specify the month."
+    if not year_found:
+        return "Sorry, could not recognize the year. Please specify the year or say 'last year' or 'this year'."
+
+    # Search
+    result = data[(data['Customer Name'] == customer_name) &
+                  (data['Date'].dt.year == year_found) &
+                  (data['Date'].dt.month == month_found)]
+
+    if not result.empty:
+        revenue = result['Net Revenue'].sum()
+        month_name = result.iloc[0]['Month']
+        if revenue == 0:
+            answer = f"{customer_name} had no recorded revenue in {month_name} {year_found}."
+        else:
+            answer = f"{customer_name} made ${revenue:,.2f} in {month_name} {year_found}."
+        return answer
     else:
-        return "No relevant data found."
+        return "No matching record found."
 
-# Step 3: Extract the Answer from Matched Data
-def generate_answer(question, matched_data):
-    if isinstance(matched_data, str):
-        return matched_data  # Return "No relevant data found."
+# Streamlit App UI
+st.title("Customer Revenue NLP Query Engine")
+st.write("Type your question below (e.g., 'How much did ABLKM make last March?')")
 
-    # Format results into a readable response
-    results = []
-    for row in matched_data:
-        for key, value in row.items():
-            results.append(f"**{key.replace('_', ' ').title()}**: {value}")
+user_question = st.text_input("Enter your question:")
 
-    return "\n".join(results)
-
-# Step 4: Process User Query
-if st.button("Search"):
-    with st.spinner("🔍 Searching..."):
-        matched_data = find_relevant_context(user_query, df)
-        result = generate_answer(user_query, matched_data)
-    
-    # Display Results
-    st.subheader("📌 Answer:")
-    st.write(result)
+if st.button("Submit Query"):
+    if user_question:
+        response = smarter_nlp_query(user_question, df)
+        st.success(response)
+    else:
+        st.warning("Please enter a question!")
