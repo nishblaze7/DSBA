@@ -1,39 +1,3 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Final Upgraded Version)
-
-import streamlit as st
-import pandas as pd
-import difflib
-import datetime
-
-# Load Data
-def load_data():
-    df = pd.read_excel('NPL Sample.xlsx')
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
-
-df = load_data()
-customer_list = df['Customer Name'].unique()
-division_list = df['Division'].unique()
-account_owner_list = df['Account Owner'].unique()
-
-# Month Map
-month_map = {
-    'jan': 1, 'january': 1, 'feb': 2, 'february': 2,
-    'mar': 3, 'march': 3, 'apr': 4, 'april': 4,
-    'may': 5, 'jun': 6, 'june': 6, 'jul': 7, 'july': 7,
-    'aug': 8, 'august': 8, 'sep': 9, 'september': 9,
-    'oct': 10, 'october': 10, 'nov': 11, 'november': 11,
-    'dec': 12, 'december': 12
-}
-
-# Correct minor typos in month names
-def correct_month_typo(word):
-    matches = difflib.get_close_matches(word.lower(), month_map.keys(), n=1, cutoff=0.7)
-    if matches:
-        return month_map[matches[0]]
-    return None
-
-# Smarter NLP Query Engine
 def smarter_nlp_query(question, data):
     subq = question.strip().lower()
     words = subq.split()
@@ -122,84 +86,32 @@ def smarter_nlp_query(question, data):
 
     elif account_owner_name:
         accounts = data[data['Account Owner'] == account_owner_name]
+
+        # Apply month/year filter if mentioned
         if month_found and year_found:
-            accounts = accounts[(accounts['Date'].dt.year == year_found) & (accounts['Date'].dt.month == month_found)]
+            accounts = accounts[(accounts['Date'].dt.year == year_found) &
+                                (accounts['Date'].dt.month == month_found)]
+
+        if accounts.empty:
+            return f"No records found for {account_owner_name} in the specified time.", None
+
         summary = accounts[['Customer Name', 'Month', 'Date', 'Net Revenue']].copy()
         summary['Year'] = summary['Date'].dt.year
         summary = summary[['Customer Name', 'Month', 'Year', 'Net Revenue']]
 
+        unique_accounts = summary['Customer Name'].nunique()
         total_revenue = summary['Net Revenue'].sum()
+
         if month_found and year_found:
             return (
-                f"{account_owner_name} owns {len(summary)} accounts in {summary['Month'].iloc[0]} {year_found}. "
+                f"{account_owner_name} owns {unique_accounts} active accounts in {summary['Month'].iloc[0]} {year_found}. "
                 f"Total revenue was ${total_revenue:,.2f}.",
                 summary
             )
         else:
             return (
-                f"{account_owner_name} owns {len(summary)} accounts. Lifetime total revenue: ${total_revenue:,.2f}.",
+                f"{account_owner_name} owns {unique_accounts} total accounts. Lifetime total revenue: ${total_revenue:,.2f}.",
                 summary
             )
     else:
         return "Sorry, I couldn't understand part of the question.", None
-
-# Streamlit UI
-st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
-
-st.markdown("""
-    <style>
-    .stApp { background-color: #e6f2ff; }
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    .stButton>button {
-        background-color: #4B9CD3;
-        color: white;
-        font-size: 18px;
-        border-radius: 10px;
-        padding: 0.5rem 2rem;
-    }
-    .stTextInput>div>div>input {
-        background-color: #ffffff;
-        border: 2px solid #4B9CD3;
-        border-radius: 12px;
-        padding: 15px;
-        font-size: 18px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("🚚 Customer Revenue NLP Query Engine")
-
-st.markdown("""
-### Empowering Logistics Insights
-Examples:
-- **How much revenue did ABLKM make in March 2023?**
-- **How much did Division X make in 2025?**
-- **How many accounts does Account Owner Y own and what is their total revenue?**
-- **How many accounts does Amy Walker own, and what did they make in March 2023?**
-""")
-
-user_question = st.text_input("Enter your question:")
-
-if st.button("Submit Query"):
-    if user_question:
-        subquestions = user_question.split("?")
-        for subq in subquestions:
-            subq = subq.strip()
-            if not subq:
-                continue
-            with st.container():
-                st.markdown("---")
-                st.markdown(f"**Question:** {subq}")
-                response, summary_df = smarter_nlp_query(subq, df)
-                st.info(response)
-                if summary_df is not None and not summary_df.empty:
-                    st.write("### Accounts and Revenue Summary")
-                    st.dataframe(summary_df)
-                    grand_total = summary_df['Net Revenue'].sum()
-                    st.success(f"**Grand Total Revenue across all accounts: ${grand_total:,.2f}**")
-    else:
-        st.warning("Please enter a question!")
-
-st.markdown("---")
-st.caption("Built for Corporate Logistics - Powered by NLP ✨")
