@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Upgraded with Corporate Logistics Theme)
+# Streamlit App: Customer Revenue NLP Query Engine (Upgraded with Carolina Blue Corporate Theme)
 
 import streamlit as st
 import pandas as pd
@@ -111,11 +111,11 @@ def smarter_nlp_query(question, data):
 # Streamlit App UI
 st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
 
-# Custom CSS Styling
+# Custom CSS Styling for Carolina Blue Theme
 st.markdown("""
     <style>
     body {
-        background-color: #f0f2f6;
+        background-color: #e6f2ff;
     }
     .reportview-container .main .block-container{
         padding-top: 2rem;
@@ -126,20 +126,27 @@ st.markdown("""
     }
     .stButton>button {
         color: white;
-        background-color: #228B22;
+        background-color: #4B9CD3;
         font-size: 18px;
         height: 3em;
-        width: 10em;
+        width: 12em;
         border-radius: 10px;
+    }
+    .stTextInput>div>div>input {
+        background-color: #f0f8ff;
+        border: 1px solid #4B9CD3;
+        border-radius: 8px;
+        padding: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # Page Content
 st.title("🚚 Customer Revenue NLP Query Engine")
+
 st.markdown("""
-### Empowering Logistics Insights
-Type your question below to query customer revenues using natural language!
+### Empowering Logistics Insights with a Carolina Blue Theme
+Example Question: **How much revenue did ABLKM make last March?**
 """)
 
 user_question = st.text_input("Enter your question:")
@@ -152,4 +159,4 @@ if st.button("Submit Query"):
         st.warning("Please enter a question!")
 
 st.markdown("---")
-st.caption("Built for Corporate Logistics - Powered by NLP ✨")
+st.caption("Built for Corporate Logistics")
