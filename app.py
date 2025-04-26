@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Final Upgraded Version)
+# Streamlit App: Customer Revenue NLP Query Engine (Enhanced with Pretty Cards + Summary Table)
 
 import streamlit as st
 import pandas as pd
@@ -121,23 +121,27 @@ def smarter_nlp_query(question, data):
             return "No matching division revenue record found.", None
 
     elif account_owner_name:
-        accounts = data[data['Account Owner'] == account_owner_name]
+        accounts = data[data['Account Owner'] == account_owner_name]['Customer Name'].unique()
+        account_list = ", ".join(accounts)
         if month_found and year_found:
-            accounts = accounts[(accounts['Date'].dt.year == year_found) & (accounts['Date'].dt.month == month_found)]
-        summary = accounts[['Customer Name', 'Month', 'Date', 'Net Revenue']].copy()
-        summary['Year'] = summary['Date'].dt.year
-        summary = summary[['Customer Name', 'Month', 'Year', 'Net Revenue']]
-
-        total_revenue = summary['Net Revenue'].sum()
-        if month_found and year_found:
+            result = data[(data['Account Owner'] == account_owner_name) &
+                          (data['Date'].dt.year == year_found) &
+                          (data['Date'].dt.month == month_found)]
+            total_revenue = result['Net Revenue'].sum()
+            month_name = result['Month'].iloc[0] if not result.empty else ""
+            summary = data[data['Account Owner'] == account_owner_name][['Customer Name', 'Net Revenue']]
             return (
-                f"{account_owner_name} owns {len(summary)} accounts in {summary['Month'].iloc[0]} {year_found}. "
-                f"Total revenue was ${total_revenue:,.2f}.",
+                f"{account_owner_name} owns {len(accounts)} accounts. "
+                f"In {month_name} {year_found}, total revenue was ${total_revenue:,.2f}.",
                 summary
             )
         else:
+            full_result = data[data['Account Owner'] == account_owner_name]
+            total_revenue = full_result['Net Revenue'].sum()
+            summary = full_result[['Customer Name', 'Net Revenue']]
             return (
-                f"{account_owner_name} owns {len(summary)} accounts. Lifetime total revenue: ${total_revenue:,.2f}.",
+                f"{account_owner_name} owns {len(accounts)} accounts. "
+                f"Lifetime total revenue: ${total_revenue:,.2f}.",
                 summary
             )
     else:
@@ -193,11 +197,9 @@ if st.button("Submit Query"):
                 st.markdown(f"**Question:** {subq}")
                 response, summary_df = smarter_nlp_query(subq, df)
                 st.info(response)
-                if summary_df is not None and not summary_df.empty:
-                    st.write("### Accounts and Revenue Summary")
+                if summary_df is not None:
+                    st.write("### Accounts and Revenue")
                     st.dataframe(summary_df)
-                    grand_total = summary_df['Net Revenue'].sum()
-                    st.success(f"**Grand Total Revenue across all accounts: ${grand_total:,.2f}**")
     else:
         st.warning("Please enter a question!")
 
