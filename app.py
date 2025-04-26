@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine
+# Streamlit App: Customer Revenue NLP Query Engine (Upgraded with Corporate Logistics Theme)
 
 import streamlit as st
 import pandas as pd
@@ -109,8 +109,38 @@ def smarter_nlp_query(question, data):
         return "No matching record found."
 
 # Streamlit App UI
-st.title("Customer Revenue NLP Query Engine")
-st.write("Type your question below (e.g., 'How much did ABLKM make last March?')")
+st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
+
+# Custom CSS Styling
+st.markdown("""
+    <style>
+    body {
+        background-color: #f0f2f6;
+    }
+    .reportview-container .main .block-container{
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .stButton>button {
+        color: white;
+        background-color: #228B22;
+        font-size: 18px;
+        height: 3em;
+        width: 10em;
+        border-radius: 10px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Page Content
+st.title("🚚 Customer Revenue NLP Query Engine")
+st.markdown("""
+### Empowering Logistics Insights
+Type your question below to query customer revenues using natural language!
+""")
 
 user_question = st.text_input("Enter your question:")
 
@@ -120,3 +150,6 @@ if st.button("Submit Query"):
         st.success(response)
     else:
         st.warning("Please enter a question!")
+
+st.markdown("---")
+st.caption("Built for Corporate Logistics - Powered by NLP ✨")
