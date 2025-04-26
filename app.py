@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Corrected Theme Version)
+# Streamlit App: Customer Revenue NLP Query Engine (Corrected Theme Version with Pop-Out Box)
 
 import streamlit as st
 import pandas as pd
@@ -42,7 +42,6 @@ def smarter_nlp_query(question, data):
     question = question.lower()
     words = question.split()
 
-    # Customer fuzzy matching
     customer_name = None
     for word in words:
         match = difflib.get_close_matches(word, [cust.lower() for cust in customer_list], n=1, cutoff=0.7)
@@ -54,7 +53,6 @@ def smarter_nlp_query(question, data):
             if customer_name:
                 break
 
-    # Month detection
     month_found = None
     for month_key in month_map.keys():
         if month_key in question:
@@ -67,7 +65,6 @@ def smarter_nlp_query(question, data):
             if month_found:
                 break
 
-    # Year detection
     import re
     year_found = None
     current_year = datetime.datetime.now().year
@@ -84,7 +81,6 @@ def smarter_nlp_query(question, data):
     elif "this" in question and month_found:
         year_found = current_year
 
-    # Validate inputs
     if not customer_name:
         return "Sorry, could not recognize the customer name. Please check spelling."
     if not month_found:
@@ -92,7 +88,6 @@ def smarter_nlp_query(question, data):
     if not year_found:
         return "Sorry, could not recognize the year. Please specify the year or say 'last year' or 'this year'."
 
-    # Search
     result = data[(data['Customer Name'] == customer_name) &
                   (data['Date'].dt.year == year_found) &
                   (data['Date'].dt.month == month_found)]
@@ -111,7 +106,7 @@ def smarter_nlp_query(question, data):
 # Streamlit App UI
 st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
 
-# Custom Correct CSS for Carolina Blue Theme
+# Custom Correct CSS for Carolina Blue Theme with pop-out box
 st.markdown("""
     <style>
     .stApp {
@@ -129,10 +124,12 @@ st.markdown("""
         padding: 0.5rem 2rem;
     }
     .stTextInput>div>div>input {
-        background-color: #f0f8ff;
-        border: 1px solid #4B9CD3;
-        border-radius: 8px;
-        padding: 10px;
+        background-color: #ffffff;
+        border: 2px solid #4B9CD3;
+        border-radius: 12px;
+        padding: 15px;
+        font-size: 18px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
     </style>
 """, unsafe_allow_html=True)
