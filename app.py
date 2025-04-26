@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Enhanced with Pretty Cards + Summary Table)
+# Streamlit App: Customer Revenue NLP Query Engine (Clean Short Sentences Version)
 
 import streamlit as st
 import pandas as pd
@@ -98,79 +98,56 @@ def smarter_nlp_query(question, data):
 
     if customer_name:
         if not month_found or not year_found:
-            return "Please specify the month and year when asking about a customer.", None
+            return "Please specify the month and year when asking about a customer."
         result = data[(data['Customer Name'] == customer_name) &
                       (data['Date'].dt.year == year_found) &
                       (data['Date'].dt.month == month_found)]
         if not result.empty:
             revenue = result['Net Revenue'].sum()
             month_name = result.iloc[0]['Month']
-            return f"{customer_name} made ${revenue:,.2f} in {month_name} {year_found}.", None
+            return f"{customer_name} made ${revenue:,.2f} in {month_name} {year_found}."
         else:
-            return "No matching customer revenue record found.", None
+            return "No matching customer revenue record found."
 
     elif division_name:
         if not year_found:
-            return "Please specify the year when asking about a division.", None
+            return "Please specify the year when asking about a division."
         result = data[(data['Division'] == division_name) &
                       (data['Date'].dt.year == year_found)]
         if not result.empty:
             revenue = result['Net Revenue'].sum()
-            return f"Division {division_name} generated ${revenue:,.2f} in {year_found}.", None
+            return f"Division {division_name} generated ${revenue:,.2f} in {year_found}."
         else:
-            return "No matching division revenue record found.", None
+            return "No matching division revenue record found."
 
     elif account_owner_name:
-        accounts = data[data['Account Owner'] == account_owner_name]['Customer Name'].unique()
-        account_list = ", ".join(accounts)
+        accounts = data[data['Account Owner'] == account_owner_name]
+
         if month_found and year_found:
-            result = data[(data['Account Owner'] == account_owner_name) &
-                          (data['Date'].dt.year == year_found) &
-                          (data['Date'].dt.month == month_found)]
-            total_revenue = result['Net Revenue'].sum()
-            month_name = result['Month'].iloc[0] if not result.empty else ""
-            summary = data[data['Account Owner'] == account_owner_name][['Customer Name', 'Net Revenue']]
+            accounts = accounts[(accounts['Date'].dt.year == year_found) &
+                                (accounts['Date'].dt.month == month_found)]
+
+        if accounts.empty:
+            return f"No records found for {account_owner_name} in the specified time."
+
+        unique_accounts = accounts['Customer Name'].nunique()
+        total_revenue = accounts['Net Revenue'].sum()
+
+        if month_found and year_found:
             return (
-                f"{account_owner_name} owns {len(accounts)} accounts. "
-                f"In {month_name} {year_found}, total revenue was ${total_revenue:,.2f}.",
-                summary
+                f"{account_owner_name} owns {unique_accounts} accounts in {accounts['Month'].iloc[0]} {year_found}. "
+                f"Total revenue: ${total_revenue:,.2f}."
             )
         else:
-            full_result = data[data['Account Owner'] == account_owner_name]
-            total_revenue = full_result['Net Revenue'].sum()
-            summary = full_result[['Customer Name', 'Net Revenue']]
             return (
-                f"{account_owner_name} owns {len(accounts)} accounts. "
-                f"Lifetime total revenue: ${total_revenue:,.2f}.",
-                summary
+                f"{account_owner_name} owns {unique_accounts} accounts overall. "
+                f"Lifetime total revenue: ${total_revenue:,.2f}."
             )
     else:
-        return "Sorry, I couldn't understand part of the question.", None
+        return "Sorry, I couldn't understand part of the question."
 
-# Streamlit UI
+# --- Streamlit Layout ---
 st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
-
-st.markdown("""
-    <style>
-    .stApp { background-color: #e6f2ff; }
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    .stButton>button {
-        background-color: #4B9CD3;
-        color: white;
-        font-size: 18px;
-        border-radius: 10px;
-        padding: 0.5rem 2rem;
-    }
-    .stTextInput>div>div>input {
-        background-color: #ffffff;
-        border: 2px solid #4B9CD3;
-        border-radius: 12px;
-        padding: 15px;
-        font-size: 18px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    </style>
-""", unsafe_allow_html=True)
 
 st.title("🚚 Customer Revenue NLP Query Engine")
 
@@ -195,11 +172,8 @@ if st.button("Submit Query"):
             with st.container():
                 st.markdown("---")
                 st.markdown(f"**Question:** {subq}")
-                response, summary_df = smarter_nlp_query(subq, df)
-                st.info(response)
-                if summary_df is not None:
-                    st.write("### Accounts and Revenue")
-                    st.dataframe(summary_df)
+                response = smarter_nlp_query(subq, df)
+                st.success(response)
     else:
         st.warning("Please enter a question!")
 
