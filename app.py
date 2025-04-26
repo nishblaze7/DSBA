@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine
+# Streamlit App: Customer Revenue NLP Query Engine (Corrected Theme Version with Pop-Out Box)
 
 import streamlit as st
 import pandas as pd
