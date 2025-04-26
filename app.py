@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Corrected Theme Version with Pop-Out Box)
+# Streamlit App: Customer Revenue NLP Query Engine (Expanded to Division and Account Owner Queries)
 
 import streamlit as st
 import pandas as pd
@@ -13,6 +13,8 @@ def load_data():
 
 df = load_data()
 customer_list = df['Customer Name'].unique()
+division_list = df['Division'].unique()
+account_owner_list = df['Account Owner'].unique()
 
 # Month Map
 month_map = {
@@ -37,12 +39,17 @@ def correct_month_typo(word):
         return month_map[matches[0]]
     return None
 
-# NLP Engine
+# Smarter NLP Engine
+
 def smarter_nlp_query(question, data):
     question = question.lower()
     words = question.split()
 
     customer_name = None
+    division_name = None
+    account_owner_name = None
+
+    # Match Customer
     for word in words:
         match = difflib.get_close_matches(word, [cust.lower() for cust in customer_list], n=1, cutoff=0.7)
         if match:
@@ -53,16 +60,26 @@ def smarter_nlp_query(question, data):
             if customer_name:
                 break
 
-    month_found = None
-    for month_key in month_map.keys():
-        if month_key in question:
-            month_found = month_map[month_key]
-            break
+    # Match Division
+    for word in words:
+        match = difflib.get_close_matches(word, [div.lower() for div in division_list], n=1, cutoff=0.7)
+        if match:
+            for real_name in division_list:
+                if real_name.lower() == match[0]:
+                    division_name = real_name
+                    break
+            if division_name:
+                break
 
-    if not month_found:
-        for word in words:
-            month_found = correct_month_typo(word)
-            if month_found:
+    # Match Account Owner
+    for word in words:
+        match = difflib.get_close_matches(word, [acct.lower() for acct in account_owner_list], n=1, cutoff=0.7)
+        if match:
+            for real_name in account_owner_list:
+                if real_name.lower() == match[0]:
+                    account_owner_name = real_name
+                    break
+            if account_owner_name:
                 break
 
     import re
@@ -76,32 +93,57 @@ def smarter_nlp_query(question, data):
         year_found = current_year - 1
     elif "this year" in question:
         year_found = current_year
-    elif "last" in question and month_found:
-        year_found = current_year - 1
-    elif "this" in question and month_found:
-        year_found = current_year
 
-    if not customer_name:
-        return "Sorry, could not recognize the customer name. Please check spelling."
+    # Parse Month if mentioned
+    month_found = None
+    for month_key in month_map.keys():
+        if month_key in question:
+            month_found = month_map[month_key]
+            break
+
     if not month_found:
-        return "Sorry, could not recognize the month. Please specify the month."
-    if not year_found:
-        return "Sorry, could not recognize the year. Please specify the year or say 'last year' or 'this year'."
+        for word in words:
+            month_found = correct_month_typo(word)
+            if month_found:
+                break
 
-    result = data[(data['Customer Name'] == customer_name) &
-                  (data['Date'].dt.year == year_found) &
-                  (data['Date'].dt.month == month_found)]
-
-    if not result.empty:
-        revenue = result['Net Revenue'].sum()
-        month_name = result.iloc[0]['Month']
-        if revenue == 0:
-            answer = f"{customer_name} had no recorded revenue in {month_name} {year_found}."
+    # Customer Query
+    if customer_name:
+        if not month_found or not year_found:
+            return "Please specify the month and year when asking about a customer."
+        result = data[(data['Customer Name'] == customer_name) &
+                      (data['Date'].dt.year == year_found) &
+                      (data['Date'].dt.month == month_found)]
+        if not result.empty:
+            revenue = result['Net Revenue'].sum()
+            month_name = result.iloc[0]['Month']
+            return f"{customer_name} made ${revenue:,.2f} in {month_name} {year_found}."
         else:
-            answer = f"{customer_name} made ${revenue:,.2f} in {month_name} {year_found}."
-        return answer
-    else:
-        return "No matching record found."
+            return "No matching customer revenue record found."
+
+    # Division Query
+    if division_name:
+        if not year_found:
+            return "Please specify the year when asking about a division."
+        result = data[(data['Division'] == division_name) &
+                      (data['Date'].dt.year == year_found)]
+        if not result.empty:
+            revenue = result['Net Revenue'].sum()
+            return f"Division {division_name} generated ${revenue:,.2f} in {year_found}."
+        else:
+            return "No matching division revenue record found."
+
+    # Account Owner Query
+    if account_owner_name:
+        result = data[data['Account Owner'] == account_owner_name]
+        if not result.empty:
+            account_count = result['Customer Name'].nunique()
+            total_revenue = result['Net Revenue'].sum()
+            return f"{account_owner_name} owns {account_count} accounts, generating a total of ${total_revenue:,.2f}."
+        else:
+            return "No matching account owner record found."
+
+    return "Sorry, I couldn't understand the question. Please check spelling or structure."
 
 # Streamlit App UI
 st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
@@ -139,7 +181,10 @@ st.title("🚚 Customer Revenue NLP Query Engine")
 
 st.markdown("""
 ### Empowering Logistics Insights
-Example Question: **How much revenue did ABLKM make last March?**
+Examples:
+- **How much revenue did ABLKM make in March 2023?**
+- **How much did Division X make in 2025?**
+- **How many accounts does Account Owner Y own and what is their total revenue?**
 """)
 
 user_question = st.text_input("Enter your question:")
