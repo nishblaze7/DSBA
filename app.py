@@ -190,10 +190,10 @@ st.title("🚚 Customer Revenue NLP Query Engine")
 st.markdown("""
 ### Empowering Logistics Insights
 Examples:
-- **How much revenue did ABLKM make in March 2023?**
-- **How much did Division X make in 2025?**
-- **How many accounts does Account Owner Y own and what is their total revenue?**
-- **How many accounts does Amy Walker own, and what did they make in March 2023?**
+- **How much revenue did "" make in March 2023?**
+- **How much did Division "" make in 2025?**
+- **How many accounts does Account Owner "" own and what is their total revenue?**
+- **How many accounts does "" own, and what did they make in March 2023?**
 """)
 
 user_question = st.text_input("Enter your question:")
