@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Correct Month/Year Filtering)
+# Streamlit App: Customer Revenue NLP Query Engine (Final Fully Correct Version)
 
 import streamlit as st
 import pandas as pd
@@ -121,26 +121,33 @@ def smarter_nlp_query(question, data):
             return "No matching division revenue record found."
 
     elif account_owner_name:
-        accounts = data[data['Account Owner'] == account_owner_name]
+        full_accounts = data[data['Account Owner'] == account_owner_name]
 
         if month_found and year_found:
-            # Filter correctly for the month/year
-            accounts = accounts[(accounts['Date'].dt.year == year_found) &
-                                (accounts['Date'].dt.month == month_found)]
+            # Filter specifically to month/year if mentioned
+            accounts = full_accounts[(full_accounts['Date'].dt.year == year_found) &
+                                      (full_accounts['Date'].dt.month == month_found)]
+            if accounts.empty:
+                month_name_text = list(month_map.keys())[list(month_map.values()).index(month_found)].capitalize()
+                return f"No accounts found for {account_owner_name} in {month_name_text} {year_found}."
 
-        if accounts.empty:
-            return f"No records found for {account_owner_name} in the specified time."
-
-        unique_accounts = accounts['Customer Name'].nunique()
-        total_revenue = accounts['Net Revenue'].sum()
-
-        if month_found and year_found:
+            unique_accounts = accounts['Customer Name'].nunique()
+            total_revenue = accounts['Net Revenue'].sum()
             month_name = accounts['Month'].iloc[0]
+
             return (
                 f"{account_owner_name} owns {unique_accounts} active accounts in {month_name} {year_found}. "
                 f"Total revenue: ${total_revenue:,.2f}."
             )
+
         else:
+            # If month/year NOT specified, lifetime
+            if full_accounts.empty:
+                return f"No accounts found for {account_owner_name}."
+
+            unique_accounts = full_accounts['Customer Name'].nunique()
+            total_revenue = full_accounts['Net Revenue'].sum()
+
             return (
                 f"{account_owner_name} owns {unique_accounts} accounts overall. "
                 f"Lifetime total revenue: ${total_revenue:,.2f}."
@@ -180,4 +187,4 @@ if st.button("Submit Query"):
         st.warning("Please enter a question!")
 
 st.markdown("---")
-st.caption("Built for Corporate Logistics - Powered by NLP ✨")
+st.caption("Built for Corporate Logistics")
