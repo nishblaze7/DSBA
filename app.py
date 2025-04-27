@@ -202,10 +202,10 @@ def smarter_nlp_query(question, data):
 st.markdown("""
 ### Empowering Logistics Insights
 Examples:
-- **How much revenue did Coca-Cola make in March 2023?**
-- **How much did Division Intermodal make last May?**
-- **How many accounts does Amy Walker own and what did they make in April 2024?**
-- **How long has Pepsi been a customer?**
+- **How much revenue did "" make in March 2023?**
+- **How much did Division "" make last May?**
+- **How many accounts does"" own and what did they make in April 2024?**
+- **How long has"" been a customer?**
 """)
 
 user_question = st.text_input("Enter your question:")
