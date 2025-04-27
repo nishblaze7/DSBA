@@ -1,15 +1,23 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Expanded with Multi-Question Support)
+# Streamlit App: Customer Revenue NLP Query Engine (Clean Version)
 
 import streamlit as st
 import pandas as pd
 import difflib
 import datetime
 
+# Page Setup
+st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
+st.title("🚚 Customer Revenue NLP Query Engine")
+
 # Load Data
 def load_data():
-    df = pd.read_excel('NPL Sample.xlsx')
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
+    try:
+        df = pd.read_excel('NPL Sample.xlsx')
+        df['Date'] = pd.to_datetime(df['Date'])
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Failed to load the data file: {e}")
+        st.stop()
 
 df = load_data()
 customer_list = df['Customer Name'].unique()
@@ -39,6 +47,7 @@ def correct_month_typo(word):
         return month_map[matches[0]]
     return None
 
+# Smarter NLP Query Engine
 def smarter_nlp_query(question, data):
     responses = []
     subquestions = question.split("?")
@@ -118,7 +127,7 @@ def smarter_nlp_query(question, data):
             elif "this" in subq:
                 year_found = current_year
 
-        # Handle Customer Tenure Question
+        # Handle Customer Start Date + Revenue Question
         if "how long" in subq and customer_name:
             cust_data = data[data['Customer Name'] == customer_name]
             if cust_data.empty:
@@ -126,13 +135,11 @@ def smarter_nlp_query(question, data):
                 continue
 
             first_date = cust_data['Date'].min()
-            today = datetime.datetime.now()
-            months_active = (today.year - first_date.year) * 12 + (today.month - first_date.month)
             total_revenue = cust_data['Net Revenue'].sum()
 
             responses.append(
-                f"{customer_name} has been a customer since {first_date.strftime('%B %Y')} "
-                f"({months_active} months). Total revenue: ${total_revenue:,.2f}."
+                f"{customer_name} has been a customer since {first_date.strftime('%B %Y')}. "
+                f"Total revenue: ${total_revenue:,.2f}."
             )
             continue
 
@@ -190,3 +197,25 @@ def smarter_nlp_query(question, data):
             responses.append("Sorry, I couldn't understand part of the question.")
 
     return "\n\n".join(responses)
+
+# Streamlit App Layout
+st.markdown("""
+### Empowering Logistics Insights
+Examples:
+- **How much revenue did Coca-Cola make in March 2023?**
+- **How much did Division Intermodal make last May?**
+- **How many accounts does Amy Walker own and what did they make in April 2024?**
+- **How long has Pepsi been a customer?**
+""")
+
+user_question = st.text_input("Enter your question:")
+
+if st.button("Submit Query"):
+    if user_question:
+        response = smarter_nlp_query(user_question, df)
+        st.success(response)
+    else:
+        st.warning("Please enter a question!")
+
+st.markdown("---")
+st.caption("Built for Corporate Logistics - Powered by NLP ✨")
