@@ -1,4 +1,4 @@
-# Streamlit App: Customer Revenue NLP Query Engine (Clean Short Sentences Version)
+# Streamlit App: Customer Revenue NLP Query Engine (Correct Month/Year Filtering)
 
 import streamlit as st
 import pandas as pd
@@ -124,6 +124,7 @@ def smarter_nlp_query(question, data):
         accounts = data[data['Account Owner'] == account_owner_name]
 
         if month_found and year_found:
+            # Filter correctly for the month/year
             accounts = accounts[(accounts['Date'].dt.year == year_found) &
                                 (accounts['Date'].dt.month == month_found)]
 
@@ -134,8 +135,9 @@ def smarter_nlp_query(question, data):
         total_revenue = accounts['Net Revenue'].sum()
 
         if month_found and year_found:
+            month_name = accounts['Month'].iloc[0]
             return (
-                f"{account_owner_name} owns {unique_accounts} accounts in {accounts['Month'].iloc[0]} {year_found}. "
+                f"{account_owner_name} owns {unique_accounts} active accounts in {month_name} {year_found}. "
                 f"Total revenue: ${total_revenue:,.2f}."
             )
         else:
