@@ -39,11 +39,11 @@ def correct_month_typo(word):
         return month_map[matches[0]]
     return None
 
-# Smarter NLP Engine
-
 def smarter_nlp_query(question, data):
     responses = []
     subquestions = question.split("?")
+
+    current_year = datetime.datetime.now().year
 
     for subq in subquestions:
         subq = subq.strip().lower()
@@ -55,6 +55,7 @@ def smarter_nlp_query(question, data):
         division_name = None
         account_owner_name = None
 
+        # Match Customer, Division, Account Owner
         for word in words:
             match = difflib.get_close_matches(word, [cust.lower() for cust in customer_list], n=1, cutoff=0.7)
             if match:
@@ -85,9 +86,9 @@ def smarter_nlp_query(question, data):
                 if account_owner_name:
                     break
 
+        # Find Year
         import re
         year_found = None
-        current_year = datetime.datetime.now().year
 
         year_match = re.search(r'20\d{2}', subq)
         if year_match:
@@ -97,6 +98,7 @@ def smarter_nlp_query(question, data):
         elif "this year" in subq:
             year_found = current_year
 
+        # Find Month
         month_found = None
         for month_key in month_map.keys():
             if month_key in subq:
@@ -109,6 +111,32 @@ def smarter_nlp_query(question, data):
                 if month_found:
                     break
 
+        # NEW: infer year if month is found but year missing and "last" or "this" is mentioned
+        if month_found and year_found is None:
+            if "last" in subq:
+                year_found = current_year - 1
+            elif "this" in subq:
+                year_found = current_year
+
+        # Handle Customer Tenure Question
+        if "how long" in subq and customer_name:
+            cust_data = data[data['Customer Name'] == customer_name]
+            if cust_data.empty:
+                responses.append(f"No records found for {customer_name}.")
+                continue
+
+            first_date = cust_data['Date'].min()
+            today = datetime.datetime.now()
+            months_active = (today.year - first_date.year) * 12 + (today.month - first_date.month)
+            total_revenue = cust_data['Net Revenue'].sum()
+
+            responses.append(
+                f"{customer_name} has been a customer since {first_date.strftime('%B %Y')} "
+                f"({months_active} months). Total revenue: ${total_revenue:,.2f}."
+            )
+            continue
+
+        # Normal Customer Revenue lookup
         if customer_name:
             if not month_found or not year_found:
                 responses.append("Please specify the month and year when asking about a customer.")
@@ -123,6 +151,7 @@ def smarter_nlp_query(question, data):
                 else:
                     responses.append("No matching customer revenue record found.")
 
+        # Division Revenue lookup
         elif division_name:
             if not year_found:
                 responses.append("Please specify the year when asking about a division.")
@@ -135,6 +164,7 @@ def smarter_nlp_query(question, data):
                 else:
                     responses.append("No matching division revenue record found.")
 
+        # Account Owner Lookup
         elif account_owner_name:
             accounts = data[data['Account Owner'] == account_owner_name]['Customer Name'].unique()
             account_list = ", ".join(accounts)
@@ -144,66 +174,19 @@ def smarter_nlp_query(question, data):
                               (data['Date'].dt.month == month_found)]
                 total_revenue = result['Net Revenue'].sum()
                 month_name = result['Month'].iloc[0] if not result.empty else ""
-                responses.append(f"{account_owner_name} owns {len(accounts)} accounts: {account_list}. In {month_name} {year_found}, total revenue was ${total_revenue:,.2f}.")
+                responses.append(
+                    f"{account_owner_name} owns {len(accounts)} accounts: {account_list}. "
+                    f"In {month_name} {year_found}, total revenue was ${total_revenue:,.2f}."
+                )
             else:
                 full_result = data[data['Account Owner'] == account_owner_name]
                 total_revenue = full_result['Net Revenue'].sum()
-                responses.append(f"{account_owner_name} owns {len(accounts)} accounts: {account_list}. Lifetime total revenue: ${total_revenue:,.2f}.")
+                responses.append(
+                    f"{account_owner_name} owns {len(accounts)} accounts: {account_list}. "
+                    f"Lifetime total revenue: ${total_revenue:,.2f}."
+                )
 
         else:
             responses.append("Sorry, I couldn't understand part of the question.")
 
     return "\n\n".join(responses)
-
-# Streamlit App UI
-st.set_page_config(page_title="Customer Revenue NLP", layout="wide", page_icon="🚚")
-
-st.markdown("""
-    <style>
-    .stApp {
-        background-color: #e6f2ff;
-    }
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-    }
-    .stButton>button {
-        background-color: #4B9CD3;
-        color: white;
-        font-size: 18px;
-        border-radius: 10px;
-        padding: 0.5rem 2rem;
-    }
-    .stTextInput>div>div>input {
-        background-color: #ffffff;
-        border: 2px solid #4B9CD3;
-        border-radius: 12px;
-        padding: 15px;
-        font-size: 18px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("🚚 Customer Revenue NLP Query Engine")
-
-st.markdown("""
-### Empowering Logistics Insights
-Examples:
-- **How much revenue did "" make in March 2023?**
-- **How much did Division "" make in 2025?**
-- **How many accounts does Account Owner "" own and what is their total revenue?**
-- **How many accounts does "" own, and what did they make in March 2023?**
-""")
-
-user_question = st.text_input("Enter your question:")
-
-if st.button("Submit Query"):
-    if user_question:
-        response = smarter_nlp_query(user_question, df)
-        st.success(response)
-    else:
-        st.warning("Please enter a question!")
-
-st.markdown("---")
-st.caption("Built for Corporate Logistics - Powered by NLP ✨")
