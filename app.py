@@ -7,9 +7,13 @@ import datetime
 
 # Load Data
 def load_data():
-    df = pd.read_excel('NPL Sample.xlsx')
-    df['Date'] = pd.to_datetime(df['Date'])
-    return df
+    try:
+        df = pd.read_excel('NPL Sample.xlsx')
+        df['Date'] = pd.to_datetime(df['Date'])
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Failed to load the data file: {e}")
+        st.stop()
 
 df = load_data()
 customer_list = df['Customer Name'].unique()
